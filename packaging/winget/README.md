@@ -34,17 +34,13 @@ Winget 原生支持 Portable ZIP 格式，无需制作 `.msi` 安装包：
    ```powershell
    winget install Microsoft.WingetCreate
    ```
-2. 根据 Release 下载链接生成 Manifest 并提交 PR：
+2. 已在 [manifests/h/Huxulm/lcctl/0.1.0](./manifests/h/Huxulm/lcctl/0.1.0/Huxulm.lcctl.yaml) 预生成并通过 `winget validate` 校验的清单文件，可直接提交 PR 到 `microsoft/winget-pkgs`：
    ```powershell
-   wingetcreate new https://github.com/huxulm/lcctl/releases/download/v0.1.0/lcctl-v0.1.0-x86_64-pc-windows-msvc.zip
+   winget validate --manifest packaging\winget\manifests\h\Huxulm\lcctl\0.1.0
+   wingetcreate submit packaging\winget\manifests\h\Huxulm\lcctl\0.1.0
    ```
-3. 按交互提示确认：
-   - PackageIdentifier：`Huxulm.lcctl`
-   - InstallerType：`zip` / NestedInstallerType：`portable`
-   - RelativeFilePath：`lcctl.exe`
-   - PortableCommandAlias：`lcctl`
-   - License：`MIT`
-4. 后续发布新版本时直接执行：
+   （或使用 `wingetcreate new https://github.com/huxulm/lcctl/releases/download/v0.1.0/lcctl-v0.1.0-x86_64-pc-windows-msvc.zip` 重新交互式生成。）
+3. 后续发布新版本时直接执行：
    ```powershell
    wingetcreate update Huxulm.lcctl -v 0.2.0 -u https://github.com/huxulm/lcctl/releases/download/v0.2.0/lcctl-v0.2.0-x86_64-pc-windows-msvc.zip --submit
    ```
