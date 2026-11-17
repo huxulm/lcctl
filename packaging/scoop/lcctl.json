@@ -6,7 +6,7 @@
   "architecture": {
     "64bit": {
       "url": "https://github.com/huxulm/lcctl/releases/download/v0.1.0/lcctl-v0.1.0-x86_64-pc-windows-msvc.zip",
-      "hash": "REPLACE_WITH_SHA256_FROM_RELEASE"
+      "hash": "58dd8fee55e46736ca1073f410143a24dec19e21f07e29194c536eb925d22122"
     }
   },
   "bin": "lcctl.exe",
