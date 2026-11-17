@@ -1,0 +1,28 @@
+[package]
+name = "lcctl"
+version = "0.1.0"
+edition = "2024"
+description = "LeetCode China (leetcode.cn) CLI assistant for daily coding tasks"
+license = "MIT"
+homepage = "https://github.com/huxulm/lcctl"
+repository = "https://github.com/huxulm/lcctl"
+keywords = ["leetcode", "cli", "productivity"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+anyhow = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chromiumoxide = "0.9"
+clap = { version = "4", features = ["derive", "env"] }
+dirs = "6"
+futures-util = "0.3"
+indicatif = "0.17"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rustyline = "15"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+shell-words = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
+toml = "0.8"
+uuid = { version = "1", features = ["v4"] }

@@ -1,0 +1,21 @@
+{
+  "version": "0.1.0",
+  "description": "LeetCode China (leetcode.cn) CLI assistant for daily coding tasks",
+  "homepage": "https://github.com/huxulm/lcctl",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/huxulm/lcctl/releases/download/v0.1.0/lcctl-v0.1.0-x86_64-pc-windows-msvc.zip",
+      "hash": "REPLACE_WITH_SHA256_FROM_RELEASE"
+    }
+  },
+  "bin": "lcctl.exe",
+  "checkver": "github",
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/huxulm/lcctl/releases/download/v$version/lcctl-v$version-x86_64-pc-windows-msvc.zip"
+      }
+    }
+  }
+}
