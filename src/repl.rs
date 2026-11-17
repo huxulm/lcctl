@@ -21,6 +21,8 @@ const SLASH_COMMANDS: &[(&str, &str)] = &[
     ("/daily", "Show today's daily challenge (or --month YYYY-MM)"),
     ("/show", "Show problem details (defaults to active problem)"),
     ("/fetch", "Scaffold starter code for active or given problem"),
+    ("/run", "Run sample/custom testcases online for a solution file"),
+    ("/submit", "Submit a solution file for full online judging"),
     ("/hints", "Show hints for active or given problem"),
     ("/use", "Set active problem context by slug or ID"),
     ("/list", "Search or list problems (requires login)"),
@@ -96,6 +98,9 @@ impl Hinter for SlashHelper {
         }
         if line == "/show " || line == "/use " {
             return Some("<slug|id>".to_string());
+        }
+        if line == "/run " || line == "/submit " {
+            return Some("<file> [--target <slug|id>]".to_string());
         }
         if line == "/submission " {
             return Some("<submission-id>".to_string());
@@ -284,6 +289,7 @@ pub async fn run(
                                 continue;
                             }
                             let is_auth_cmd = matches!(cmd, Command::Auth { .. });
+                            let is_submit_cmd = matches!(cmd, Command::Submit(_));
                             match dispatch_command(cmd, config, &client, use_json).await {
                                 Ok(maybe_slug) => {
                                     if let Some(slug) = maybe_slug {
@@ -293,6 +299,8 @@ pub async fn run(
                                         client = LeetCodeClient::new(
                                             config.resolve_credentials(cookie_override),
                                         )?;
+                                        refresh_banner_state(&client, &mut state).await;
+                                    } else if is_submit_cmd {
                                         refresh_banner_state(&client, &mut state).await;
                                     }
                                 }

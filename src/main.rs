@@ -67,5 +67,7 @@ pub async fn dispatch_command(
             commands::points::run(args, client, json).await?;
             Ok(None)
         }
+        Command::Run(args) => commands::judge::run_interpret(args, config, client, json).await,
+        Command::Submit(args) => commands::judge::run_submit(args, config, client, json).await,
     }
 }

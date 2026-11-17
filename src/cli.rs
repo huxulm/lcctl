@@ -41,6 +41,10 @@ pub enum Command {
     Stats(StatsArgs),
     /// Show current points balance and recent points history (requires login).
     Points(PointsArgs),
+    /// Run sample or custom testcases online for a local solution file (requires login).
+    Run(RunArgs),
+    /// Submit a local solution file for full judging (requires login).
+    Submit(SubmitArgs),
 }
 
 #[derive(Debug, Subcommand)]
@@ -170,4 +174,37 @@ pub struct PointsArgs {
     /// Maximum number of recent points records to show (0 for all returned records).
     #[arg(short, long, default_value_t = 15)]
     pub limit: usize,
+}
+
+#[derive(Debug, Args)]
+pub struct RunArgs {
+    /// Path to local solution source file.
+    pub file: PathBuf,
+    /// Problem titleSlug or numeric ID (auto-inferred from file header or filename if omitted).
+    #[arg(short, long)]
+    pub target: Option<String>,
+    /// Programming language slug/alias (auto-inferred from extension if omitted).
+    #[arg(short, long)]
+    pub lang: Option<String>,
+    /// Custom testcase input (defaults to problem's example testcases).
+    #[arg(short, long)]
+    pub input: Option<String>,
+    /// Maximum seconds to wait for judge completion.
+    #[arg(long, default_value_t = 60)]
+    pub timeout: u64,
+}
+
+#[derive(Debug, Args)]
+pub struct SubmitArgs {
+    /// Path to local solution source file.
+    pub file: PathBuf,
+    /// Problem titleSlug or numeric ID (auto-inferred from file header or filename if omitted).
+    #[arg(short, long)]
+    pub target: Option<String>,
+    /// Programming language slug/alias (auto-inferred from extension if omitted).
+    #[arg(short, long)]
+    pub lang: Option<String>,
+    /// Maximum seconds to wait for judge completion.
+    #[arg(long, default_value_t = 60)]
+    pub timeout: u64,
 }

@@ -375,6 +375,70 @@ pub struct PointScoreItem {
     pub date: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct InterpretResponse {
+    pub interpret_id: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SubmitResponse {
+    pub submission_id: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JudgeCheckResult {
+    pub state: String,
+    pub status_msg: Option<String>,
+    pub run_success: Option<bool>,
+    pub correct_answer: Option<bool>,
+    pub total_correct: Option<u32>,
+    pub total_testcases: Option<u32>,
+    #[serde(default)]
+    pub code_answer: Vec<String>,
+    #[serde(default)]
+    pub expected_code_answer: Vec<String>,
+    #[serde(default)]
+    pub std_output_list: Vec<String>,
+    pub status_runtime: Option<String>,
+    pub runtime_percentile: Option<f64>,
+    pub status_memory: Option<String>,
+    pub memory_percentile: Option<f64>,
+    pub compile_error: Option<String>,
+    pub full_compile_error: Option<String>,
+    pub runtime_error: Option<String>,
+    pub full_runtime_error: Option<String>,
+    pub last_testcase: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_string_or_seq")]
+    pub expected_output: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_opt_string_or_seq")]
+    pub code_output: Option<String>,
+}
+
+fn deserialize_opt_string_or_seq<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum StringOrSeq {
+        Str(String),
+        Seq(Vec<String>),
+        Null,
+    }
+
+    match Option::<StringOrSeq>::deserialize(deserializer)? {
+        None | Some(StringOrSeq::Null) => Ok(None),
+        Some(StringOrSeq::Str(s)) => Ok(Some(s)),
+        Some(StringOrSeq::Seq(items)) => {
+            if items.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(items.join("\n")))
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -432,5 +496,23 @@ mod tests {
         .unwrap();
         assert_eq!(pts_hist.scores.len(), 1);
         assert_eq!(pts_hist.scores[0].score, 10);
+
+        let judge: JudgeCheckResult = serde_json::from_str(
+            r#"{
+                "state": "SUCCESS",
+                "status_msg": "Accepted",
+                "run_success": true,
+                "correct_answer": true,
+                "total_correct": 3,
+                "total_testcases": 3,
+                "code_answer": ["1", "2", "0"],
+                "expected_code_answer": ["1", "2", "0"],
+                "code_output": []
+            }"#,
+        )
+        .unwrap();
+        assert_eq!(judge.state, "SUCCESS");
+        assert_eq!(judge.total_correct, Some(3));
+        assert_eq!(judge.code_output, None);
     }
 }

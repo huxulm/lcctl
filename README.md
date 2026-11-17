@@ -11,6 +11,7 @@
 - `lcctl submissions <slug|id>` / `lcctl submission <id>`：查看指定题目的提交记录或某次提交的源码与运行指标（需登录）。
 - `lcctl stats [userSlug]`：查看用户刷题进度、语言分布、打卡日历、最近 AC 与竞赛积分。
 - `lcctl points`：查看个人积分余额与近期积分明细（需登录）。
+- `lcctl run <file>` / `lcctl submit <file>`：在线运行样例/自定义用例测试或正式提交代码并轮询判题结果（需登录，支持从模板头部或文件名自动识别题号与语言）。
 - 全局支持 `--json` 输出和 `--cookie` 临时覆盖。
 
 ## 快速开始
@@ -89,6 +90,10 @@ lcctl stats huxulm
 
 # 查看个人积分余额与近期明细（需登录）
 lcctl points --limit 15
+
+# 在线运行样例测试与正式提交代码（自动从文件头或扩展名推断题目与语言）
+lcctl run .\2911_minimum_changes_to_make_k_semi_palindromes.rs
+lcctl submit .\2911_minimum_changes_to_make_k_semi_palindromes.rs
 ```
 
 ## API 文档

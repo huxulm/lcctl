@@ -1,12 +1,13 @@
 use crate::config::Credentials;
 use crate::models::{
     ContestRankingPayload, DailyRecordEntry, DailyRecordsPayload, GlobalDataPayload,
-    GraphQlResponse, LanguageProblemCount, LanguageStatsPayload, PointsHistory, PointsTotal,
-    ProblemsetListPayload, ProblemsetQuestionListV2, QuestionDetail, QuestionDetailPayload,
-    QuestionOfTodayPayload, RecentAcPayload, RecentAcSubmission, StreakCounter,
-    StreakCounterPayload, SubmissionDetail, SubmissionDetailPayload, SubmissionList,
-    SubmissionListPayload, TodayRecord, UserCalendar, UserCalendarPayload, UserContestRanking,
-    UserProgressPayload, UserQuestionProgressV2, UserStatus,
+    GraphQlResponse, InterpretResponse, JudgeCheckResult, LanguageProblemCount,
+    LanguageStatsPayload, PointsHistory, PointsTotal, ProblemsetListPayload,
+    ProblemsetQuestionListV2, QuestionDetail, QuestionDetailPayload, QuestionOfTodayPayload,
+    RecentAcPayload, RecentAcSubmission, StreakCounter, StreakCounterPayload, SubmissionDetail,
+    SubmissionDetailPayload, SubmissionList, SubmissionListPayload, SubmitResponse, TodayRecord,
+    UserCalendar, UserCalendarPayload, UserContestRanking, UserProgressPayload,
+    UserQuestionProgressV2, UserStatus,
 };
 use anyhow::{Context, Result, bail};
 use reqwest::header::{COOKIE, HeaderMap, HeaderValue, ORIGIN, REFERER, USER_AGENT};
@@ -63,15 +64,7 @@ impl LeetCodeClient {
         self.credentials.has_session()
     }
 
-    /// Executes a GraphQL POST request against `/graphql/` or `/graphql/noj-go/`.
-    pub async fn graphql<T: DeserializeOwned>(
-        &self,
-        endpoint: GraphQlEndpoint,
-        operation_name: &str,
-        query: &str,
-        variables: Value,
-    ) -> Result<T> {
-        let url = format!("{}{}", self.base_url, endpoint.path());
+    fn build_headers(&self, referer_path: &str) -> Result<HeaderMap> {
         let mut headers = HeaderMap::new();
         headers.insert(USER_AGENT, HeaderValue::from_static(DEFAULT_USER_AGENT));
         headers.insert(
@@ -80,12 +73,7 @@ impl LeetCodeClient {
         );
         headers.insert(
             REFERER,
-            HeaderValue::from_str(&format!("{}/problemset/", self.base_url))?,
-        );
-        headers.insert("x-operation-name", HeaderValue::from_str(operation_name)?);
-        headers.insert(
-            "random-uuid",
-            HeaderValue::from_str(&Uuid::new_v4().to_string())?,
+            HeaderValue::from_str(&format!("{}{}", self.base_url, referer_path))?,
         );
 
         if let Some(cookie) = self.credentials.cookie_header() {
@@ -96,6 +84,56 @@ impl LeetCodeClient {
         {
             headers.insert("x-csrftoken", HeaderValue::from_str(csrf.trim())?);
         }
+        Ok(headers)
+    }
+
+    async fn send_and_decode<T: DeserializeOwned>(
+        &self,
+        req: reqwest::RequestBuilder,
+        label: &str,
+    ) -> Result<T> {
+        let response = req
+            .send()
+            .await
+            .with_context(|| format!("Request ({label}) failed"))?;
+
+        let status = response.status();
+        let raw_text = response
+            .text()
+            .await
+            .with_context(|| format!("Failed reading response body ({label})"))?;
+
+        if !status.is_success() {
+            bail!(
+                "HTTP {} ({label}): {}",
+                status,
+                raw_text.chars().take(400).collect::<String>()
+            );
+        }
+
+        serde_json::from_str(&raw_text).with_context(|| {
+            format!(
+                "Failed to decode JSON ({label}): {}",
+                raw_text.chars().take(400).collect::<String>()
+            )
+        })
+    }
+
+    /// Executes a GraphQL POST request against `/graphql/` or `/graphql/noj-go/`.
+    pub async fn graphql<T: DeserializeOwned>(
+        &self,
+        endpoint: GraphQlEndpoint,
+        operation_name: &str,
+        query: &str,
+        variables: Value,
+    ) -> Result<T> {
+        let url = format!("{}{}", self.base_url, endpoint.path());
+        let mut headers = self.build_headers("/problemset/")?;
+        headers.insert("x-operation-name", HeaderValue::from_str(operation_name)?);
+        headers.insert(
+            "random-uuid",
+            HeaderValue::from_str(&Uuid::new_v4().to_string())?,
+        );
 
         let body = json!({
             "operationName": operation_name,
@@ -103,36 +141,9 @@ impl LeetCodeClient {
             "query": query,
         });
 
-        let response = self
-            .http
-            .post(&url)
-            .headers(headers)
-            .json(&body)
-            .send()
-            .await
-            .with_context(|| format!("Request to {url} ({operation_name}) failed"))?;
-
-        let status = response.status();
-        let raw_text = response
-            .text()
-            .await
-            .with_context(|| format!("Failed reading response body from {url}"))?;
-
-        if !status.is_success() {
-            bail!(
-                "HTTP {} from {} ({operation_name}): {}",
-                status,
-                url,
-                raw_text.chars().take(400).collect::<String>()
-            );
-        }
-
-        let envelope: GraphQlResponse<T> = serde_json::from_str(&raw_text).with_context(|| {
-            format!(
-                "Failed to decode JSON for {operation_name}: {}",
-                raw_text.chars().take(400).collect::<String>()
-            )
-        })?;
+        let envelope: GraphQlResponse<T> = self
+            .send_and_decode(self.http.post(&url).headers(headers).json(&body), operation_name)
+            .await?;
 
         if let Some(errors) = envelope.errors
             && !errors.is_empty()
@@ -149,55 +160,30 @@ impl LeetCodeClient {
     /// Executes an authenticated GET JSON request against a REST endpoint on `leetcode.cn`.
     pub async fn get_json<T: DeserializeOwned>(&self, path: &str, referer_path: &str) -> Result<T> {
         let url = format!("{}{}", self.base_url, path);
-        let mut headers = HeaderMap::new();
-        headers.insert(USER_AGENT, HeaderValue::from_static(DEFAULT_USER_AGENT));
-        headers.insert(
-            REFERER,
-            HeaderValue::from_str(&format!("{}{}", self.base_url, referer_path))?,
-        );
+        let mut headers = self.build_headers(referer_path)?;
         headers.insert(
             "x-requested-with",
             HeaderValue::from_static("XMLHttpRequest"),
         );
-
-        if let Some(cookie) = self.credentials.cookie_header() {
-            headers.insert(COOKIE, HeaderValue::from_str(&cookie)?);
-        }
-        if let Some(csrf) = &self.credentials.csrftoken
-            && !csrf.trim().is_empty()
-        {
-            headers.insert("x-csrftoken", HeaderValue::from_str(csrf.trim())?);
-        }
-
-        let response = self
-            .http
-            .get(&url)
-            .headers(headers)
-            .send()
+        self.send_and_decode(self.http.get(&url).headers(headers), &url)
             .await
-            .with_context(|| format!("Request to {url} failed"))?;
+    }
 
-        let status = response.status();
-        let raw_text = response
-            .text()
+    /// Executes an authenticated POST JSON request against a REST endpoint on `leetcode.cn`.
+    pub async fn post_json<T: DeserializeOwned>(
+        &self,
+        path: &str,
+        referer_path: &str,
+        body: &Value,
+    ) -> Result<T> {
+        let url = format!("{}{}", self.base_url, path);
+        let mut headers = self.build_headers(referer_path)?;
+        headers.insert(
+            "x-requested-with",
+            HeaderValue::from_static("XMLHttpRequest"),
+        );
+        self.send_and_decode(self.http.post(&url).headers(headers).json(body), &url)
             .await
-            .with_context(|| format!("Failed reading response body from {url}"))?;
-
-        if !status.is_success() {
-            bail!(
-                "HTTP {} from {}: {}",
-                status,
-                url,
-                raw_text.chars().take(400).collect::<String>()
-            );
-        }
-
-        serde_json::from_str(&raw_text).with_context(|| {
-            format!(
-                "Failed to decode JSON from {url}: {}",
-                raw_text.chars().take(400).collect::<String>()
-            )
-        })
     }
 
     /// Queries the current authenticated user's status via `globalData`.
@@ -615,5 +601,51 @@ query userContestRankingInfo($userSlug: String!) {
     /// Queries the current authenticated user's points earning/spending history (`GET /points/api/`).
     pub async fn points_history(&self) -> Result<PointsHistory> {
         self.get_json("/points/api/", "/settings/points/").await
+    }
+
+    /// Runs sample or custom testcases online (`POST /problems/{slug}/interpret_solution/`).
+    pub async fn interpret_solution(
+        &self,
+        slug: &str,
+        question_id: &str,
+        lang: &str,
+        typed_code: &str,
+        data_input: &str,
+    ) -> Result<String> {
+        let path = format!("/problems/{slug}/interpret_solution/");
+        let referer = format!("/problems/{slug}/");
+        let body = json!({
+            "question_id": question_id,
+            "data_input": data_input,
+            "lang": lang,
+            "typed_code": typed_code,
+        });
+        let res: InterpretResponse = self.post_json(&path, &referer, &body).await?;
+        Ok(res.interpret_id)
+    }
+
+    /// Submits a solution for full judging (`POST /problems/{slug}/submit/`).
+    pub async fn submit_solution(
+        &self,
+        slug: &str,
+        question_id: &str,
+        lang: &str,
+        typed_code: &str,
+    ) -> Result<u64> {
+        let path = format!("/problems/{slug}/submit/");
+        let referer = format!("/problems/{slug}/");
+        let body = json!({
+            "question_id": question_id,
+            "lang": lang,
+            "typed_code": typed_code,
+        });
+        let res: SubmitResponse = self.post_json(&path, &referer, &body).await?;
+        Ok(res.submission_id)
+    }
+
+    /// Polls the status of an interpret run or submission (`GET /submissions/detail/{id}/check/`).
+    pub async fn check_submission(&self, check_id: &str) -> Result<JudgeCheckResult> {
+        let path = format!("/submissions/detail/{check_id}/check/");
+        self.get_json(&path, "/problemset/").await
     }
 }

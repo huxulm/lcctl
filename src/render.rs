@@ -63,6 +63,32 @@ pub fn lang_file_meta(lang_slug: &str) -> (&'static str, &'static str) {
     }
 }
 
+/// Maps a local file extension to a LeetCode `langSlug`.
+pub fn lang_slug_from_extension(ext: &str) -> Option<&'static str> {
+    match ext.trim().trim_start_matches('.').to_ascii_lowercase().as_str() {
+        "rs" => Some("rust"),
+        "go" => Some("golang"),
+        "py" => Some("python3"),
+        "cpp" | "cc" | "cxx" => Some("cpp"),
+        "c" => Some("c"),
+        "java" => Some("java"),
+        "ts" => Some("typescript"),
+        "js" => Some("javascript"),
+        "cs" => Some("csharp"),
+        "kt" => Some("kotlin"),
+        "swift" => Some("swift"),
+        "rb" => Some("ruby"),
+        "php" => Some("php"),
+        "dart" => Some("dart"),
+        "scala" => Some("scala"),
+        "ex" | "exs" => Some("elixir"),
+        "erl" => Some("erlang"),
+        "rkt" => Some("racket"),
+        "cj" => Some("cangjie"),
+        _ => None,
+    }
+}
+
 /// Formats a Unix timestamp (seconds) into local `YYYY-MM-DD HH:MM:SS`.
 pub fn format_timestamp(ts: i64) -> String {
     DateTime::<Utc>::from_timestamp(ts, 0)

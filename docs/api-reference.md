@@ -42,10 +42,13 @@
 
 ---
 
-## 2.5 已验证积分 REST 接口
+## 2.5 已验证积分与判题 REST 接口
 
 - **积分余额**：`GET https://leetcode.cn/points/api/total/`（需登录 Cookie，未登录返回 `{"points": 0}`；登录后返回 `{"points": number}`）。
 - **积分明细**：`GET https://leetcode.cn/points/api/`（需登录 Cookie，未登录返回 `401 Unauthorized`；登录后返回 `{"scores": [{ "score": number, "description": string, "date": string }]}`）。
+- **在线运行测试（Interpret）**：`POST https://leetcode.cn/problems/{slug}/interpret_solution/`（需登录 Cookie 与 `x-csrftoken`，传入 `question_id`、`data_input`、`lang`、`typed_code`，返回 `{"interpret_id": "runcode_..."}`）。
+- **提交判题（Submit）**：`POST https://leetcode.cn/problems/{slug}/submit/`（需登录 Cookie 与 `x-csrftoken`，传入 `question_id`、`lang`、`typed_code`，返回 `{"submission_id": number}`）。
+- **判题状态轮询（Check）**：`GET https://leetcode.cn/submissions/detail/{id}/check/`（轮询至 `state == "SUCCESS"`，返回 `status_msg`、`run_success`、`correct_answer`、`total_correct`、`total_testcases`、`status_runtime`、`status_memory`、`code_answer`、`expected_code_answer` 及编译/运行错误详情）。
 
 ---
 
